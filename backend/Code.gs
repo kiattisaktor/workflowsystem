@@ -21,34 +21,48 @@ function doPost(e) {
 
 function getTasks() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Tasks");
-  
-  if (!sheet) {
-    return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
-  }
+  const sheets = ["Board", "Excom"];
+  const allTasks = [];
 
-  const data = sheet.getDataRange().getValues();
-  const tasks = [];
+  sheets.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
 
-  // Assuming columns: id(0), mainTask(1), subTask(2), assignedToName(3), status(4), remark(5), sentBy(6)
-  // Skipping header row
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    // Simple check to ensure row has data
-    if (row[0]) {
-      tasks.push({
-        id: String(row[0]),
-        mainTask: String(row[1]),
-        subTask: String(row[2]),
-        assignedToName: String(row[3]),
-        status: String(row[4]),
-        remark: String(row[5]),
-        sentBy: String(row[6])
-      });
+    const data = sheet.getDataRange().getValues();
+    // Start from row 1 (skipping header 0)
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (row[0]) { // If 'Work' column exists
+            // Map columns A-M (0-12)
+            // A=Work, B=Meeting, C=RemarkDate, D=Subject, E=Note, F=Urgent, G=Due, H=Resp, I=Holder, J=Status, K=AssignedTo, L=Remark, M=Order, N=Timestamp
+            // We use row index + Sheet as ID for now to be distinct
+            // Actually, let's create a composite ID: Sheet-Work-Meeting-Subject-Order-RowIndex
+            const uniqueId = Utilities.base64EncodeWebSafe(sheetName + "-" + i);
+            
+            allTasks.push({
+                id: uniqueId,
+                sheet: sheetName,
+                rowIndex: i + 1, // 1-based index for updating
+                work: String(row[0]),
+                meetingNo: String(row[1]),
+                remarkDate: String(row[2]),
+                subject: String(row[3]),
+                note: String(row[4]),
+                urgent: Boolean(row[5]),
+                dueDate: row[6] ? Utilities.formatDate(new Date(row[6]), "GMT+7", "dd/MM/yyyy") : "",
+                responsible: String(row[7]),
+                currentHolder: String(row[8]), // งานอยู่ที่
+                status: String(row[9]),
+                assignedTo: String(row[10]),
+                remark: String(row[11]),
+                order: Number(row[12]) || 0,
+                timestamp: String(row[13])
+            });
+        }
     }
-  }
-
-  return ContentService.createTextOutput(JSON.stringify(tasks)).setMimeType(ContentService.MimeType.JSON);
+  });
+  
+  return ContentService.createTextOutput(JSON.stringify(allTasks)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function registerUser(data) {
@@ -74,7 +88,8 @@ function registerUser(data) {
   }
 
   // Append new user
-  sheet.appendRow([lineUserId, displayName, new Date()]);
+  // Columns: lineUserId(A), displayName(B), NickName(C), Role(D), registeredAt(E)
+  sheet.appendRow([lineUserId, displayName, "", "Owner", new Date()]);
 
   return ContentService.createTextOutput(JSON.stringify({ success: true, message: "User registered", id: lineUserId })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -91,15 +106,24 @@ function getUsers() {
   const data = sheet.getDataRange().getValues();
   const users = [];
 
-  // Assuming Row 1 is headers: lineUserId | displayName | registeredAt
+  // Assuming Row 1 is headers: 
+  // Col 0: lineUserId
+  // Col 1: displayName
+  // Col 2: NickName
+  // Col 3: Role
+  // Col 4: registeredAt
   for (let i = 1; i < data.length; i++) {
     const lineUserId = data[i][0];
     const displayName = data[i][1];
+    const nickName = data[i][2];
+    const role = data[i][3];
 
     if (lineUserId && displayName) {
       users.push({ 
         name: displayName, 
-        id: lineUserId 
+        id: lineUserId,
+        nickName: String(nickName),
+        role: String(role)
       });
     }
   }
@@ -108,50 +132,67 @@ function getUsers() {
 }
 
 function forwardTask(data) {
-  const { currentTaskId, remark, nextUserName, currentUserName } = data;
-  
+  const { sheetName, rowIndex, remark, nextUserName, currentUserName, actionType } = data;
+  // actionType: "SUBMIT" (Review), "RETURN" (Approved/Return to Owner), "CLOSE" (Done)
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Tasks");
-  const currentData = sheet.getDataRange().getValues();
+  const sheet = ss.getSheetByName(sheetName); 
   
-  let rowToUpdate = -1;
-  let mainTask = "";
-  let subTask = "";
-  
-  // 1. Find the current row
-  // Assuming ID is in column 1 (index 0)
-  for (let i = 1; i < currentData.length; i++) {
-    if (currentData[i][0] == currentTaskId) {
-      rowToUpdate = i + 1; // 1-based index
-      mainTask = currentData[i][1];
-      subTask = currentData[i][2];
-      break;
-    }
+  if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify({ error: "Sheet not found" })).setMimeType(ContentService.MimeType.JSON);
   }
+
+  const rIdx = Number(rowIndex);
   
-  if (rowToUpdate === -1) {
-    return ContentService.createTextOutput(JSON.stringify({ error: "Task not found" })).setMimeType(ContentService.MimeType.JSON);
+  // 1. Get current row data
+  const range = sheet.getRange(rIdx, 1, 1, 14);
+  const values = range.getValues()[0];
+  const currentOrder = Number(values[12]) || 0; 
+
+  // Col J (Status/Col 10), K (AssignedTo/Col 11), L (Remark/Col 12), N (Timestamp/Col 14)
+  
+  let oldRowStatus = "ส่งตรวจ"; // Default for SUBMIT
+  let newRowStatus = ""; // Default Pending
+  let nextUser = nextUserName;
+
+  if (actionType === "RETURN") {
+      oldRowStatus = "ตรวจแล้ว";
+      // Next user is typically the responsible person (Col H / Index 7)
+      // BUT frontend should pass the correct 'nextUserName' (Responsible).
+      // We accept nextUserName from frontend for flexibility.
+  } else if (actionType === "CLOSE") {
+      oldRowStatus = "ปิดงาน";
+      nextUser = ""; // No one next
   }
-  
-  // 2. Update status to 'Done' and remark
-  // Columns: id(1), mainTask(2), subTask(3), assignedToName(4), status(5), remark(6), sentBy(7), notificationStatus(8)
-  sheet.getRange(rowToUpdate, 5).setValue("Done");
-  sheet.getRange(rowToUpdate, 6).setValue(remark);
-  
-  // 3. Create a NEW ROW
-  const newId = Utilities.getUuid();
-  const newRow = [
-    newId,
-    mainTask,
-    subTask,
-    nextUserName,
-    "Pending",
-    "", // remark empty for new task
-    currentUserName,
-    "" // notificationStatus empty
-  ];
-  
-  sheet.appendRow(newRow);
-  
-  return ContentService.createTextOutput(JSON.stringify({ success: true, newId: newId })).setMimeType(ContentService.MimeType.JSON);
+
+  // 2. Update OLD ROW
+  sheet.getRange(rIdx, 10).setValue(oldRowStatus);
+  sheet.getRange(rIdx, 11).setValue(nextUser || "-"); // If close, set -
+  sheet.getRange(rIdx, 12).setValue(remark);
+  sheet.getRange(rIdx, 14).setValue(new Date());
+
+  // 3. Create NEW ROW (Only if NOT Close? Or Create 'Done' row?)
+  // User said "[Close] = Check complete".
+  // Usually this means the workflow ENDS. So no new row.
+  if (actionType !== "CLOSE") {
+      const newRow = [
+          values[0], // Work
+          values[1], // Meeting
+          values[2], // RemarkDate
+          values[3], // Subject
+          values[4], // Note
+          values[5], // Urgent
+          values[6], // DueDate
+          values[7], // Responsible
+          nextUser,  // Col I (งานอยู่ที่) -> New Owner
+          "",        // Col J (Status) -> Empty (Pending)
+          "",        // Col K (AssignedTo) -> Empty
+          "",        // Col L (Remark) -> Empty
+          currentOrder + 1, // Col M (Order) -> Increment
+          new Date() // Col N (Timestamp)
+      ];
+      sheet.appendRow(newRow);
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }

@@ -6,26 +6,38 @@ const GAS_API_URL = process.env.NEXT_PUBLIC_GAS_API_URL || '';
 export interface User {
   name: string;
   id: string;
+  nickName?: string;
+  role?: string;
 }
 
 export interface Task {
   id: string;
-  mainTask: string;
-  subTask: string;
-  assignedToName: string;
-  status: 'Pending' | 'Done';
+  sheet: string;
+  rowIndex: number;
+  work: string;
+  meetingNo: string;
+  remarkDate?: string;
+  subject: string;
+  note?: string;
+  urgent: boolean;
+  dueDate?: string;
+  responsible: string;
+  currentHolder: string;
+  status: string;
+  assignedTo?: string;
   remark?: string;
-  sentBy?: string;
+  order: number;
+  timestamp?: string;
 }
 
 export async function getUsers(): Promise<User[]> {
   // Mock data for development if no URL is set
   if (!GAS_API_URL) {
     return [
-      { name: "User A", id: "user_a" },
-      { name: "User B", id: "user_b" },
-      { name: "User C", id: "user_c" },
-      { name: "Manager", id: "manager" }
+      { name: "User A", id: "user_a", nickName: "A", role: "Owner" },
+      { name: "User B", id: "user_b", nickName: "B", role: "Inspector" },
+      { name: "User C", id: "user_c", nickName: "C", role: "Owner" },
+      { name: "Manager", id: "manager", nickName: "Boss", role: "Owner" }
     ];
   }
 
@@ -60,14 +72,15 @@ export async function getTasks(): Promise<Task[]> {
 }
 
 export async function forwardTask(
-  currentTaskId: string,
+  task: Task,
   remark: string,
   nextUserName: string,
-  currentUserName: string
+  currentUserName: string,
+  actionType: "SUBMIT" | "RETURN" | "CLOSE"
 ): Promise<{ success: boolean; newId?: string; error?: string }> {
 
   if (!GAS_API_URL) {
-    console.log("Mocking forwardTask call:", { currentTaskId, remark, nextUserName, currentUserName });
+    console.log("Mocking forwardTask call:", { task, remark, nextUserName, currentUserName, actionType });
     return { success: true, newId: "mock-new-id-" + Date.now() };
   }
 
@@ -76,10 +89,12 @@ export async function forwardTask(
       method: "POST",
       body: JSON.stringify({
         action: "forwardTask",
-        currentTaskId,
+        sheetName: task.sheet,
+        rowIndex: task.rowIndex,
         remark,
         nextUserName,
         currentUserName,
+        actionType,
       }),
     });
     return await response.json();

@@ -1,42 +1,52 @@
 import { Task } from "../lib/api";
+import { formatName } from "../lib/format";
 
 interface TaskRowProps {
     task: Task;
     onClick: (task: Task) => void;
+    statusText?: string;
+    statusClass?: string;
 }
 
-export default function TaskRow({ task, onClick }: TaskRowProps) {
-    // Determine badge color based on status or assignee (simulating the 'pill' look)
-    // If status is Done -> Grey or Green
-    // If status is Pending -> Blue/Purple indicating "With Someone"
+export default function TaskRow({ task, onClick, statusText, statusClass }: TaskRowProps) {
+    // Status Logic:
+    // If status is "ปิดงาน", use specific text/style.
+    const isClosed = task.status === "ปิดงาน";
 
-    const isDone = task.status === 'Done';
-    const subTaskName = task.subTask ? String(task.subTask) : "";
+    // Urgent
+    const isUrgent = task.urgent;
 
     return (
         <div
             onClick={() => onClick(task)}
-            className={`flex items-center justify-between p-3 mb-2 rounded-xl transition-all cursor-pointer border ${isDone ? 'bg-gray-50 border-transparent opacity-60' : 'bg-indigo-50/50 border-indigo-100 hover:bg-indigo-50 hover:shadow-sm'}`}
+            className="grid grid-cols-12 gap-2 p-4 mb-2 rounded-2xl transition-all cursor-pointer bg-white border border-slate-100 shadow-sm hover:shadow-md items-center min-h-[60px]"
         >
-            <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isDone ? 'bg-gray-200 text-gray-500' : 'bg-white text-indigo-600 shadow-sm'}`}>
-                    {/* Use part of ID or just a number if we had one. Using first char of SubTask as fallback */}
-                    {subTaskName.substring(0, 3)}
-                </div>
-                <div>
-                    <h4 className={`text-sm font-semibold ${isDone ? 'text-gray-500' : 'text-gray-900'}`}>{subTaskName}</h4>
-                    {/* Optional small detail */}
-                    {!isDone && <p className="text-[10px] text-gray-400">Updateล่าสุด</p>}
+            {/* Col 1: Subject (4 spans) - Left Align, No Badge */}
+            <div className="col-span-4 flex items-center gap-2 overflow-hidden pl-2">
+                <div className="flex flex-col min-w-0">
+                    <span title={task.subject} className="truncate text-sm font-bold text-slate-800">{task.subject}</span>
                 </div>
             </div>
 
-            <div>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-medium ${isDone
-                    ? 'bg-gray-100 text-gray-400'
-                    : 'bg-indigo-100 text-indigo-600'
-                    }`}>
-                    {isDone ? 'จบ' : `อยู่กับ ${task.assignedToName}`}
+            {/* Col 2: Responsible (4 spans) - Left Align */}
+            <div className="col-span-4 flex justify-start items-center px-1">
+                <span className="truncate text-xs font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded-lg">
+                    {formatName(task.responsible)}
                 </span>
+            </div>
+
+            {/* Col 3: Status (3 spans) - Center */}
+            <div className="col-span-3 flex justify-center items-center text-center">
+                {statusText && (
+                    <span className={`truncate text-[10px] font-bold px-2 py-1 rounded-full ${statusClass || 'bg-slate-100 text-slate-400'}`}>
+                        {statusText}
+                    </span>
+                )}
+            </div>
+
+            {/* Col 4: Urgent (1 span) - Center */}
+            <div className="col-span-1 flex justify-center items-center">
+                {isUrgent && <span className="text-lg animate-pulse">🔥</span>}
             </div>
         </div>
     );

@@ -3,13 +3,16 @@
 import { useState, useEffect } from "react";
 import DashboardHeader from "../components/DashboardHeader";
 import TaskGroupCard from "../components/TaskGroupCard";
+import TaskRow from "../components/TaskRow";
+import TaskDetailInline from "../components/TaskDetailInline";
 import ForwardTaskModal from "../components/ForwardTaskModal";
-import { Task, forwardTask, getTasks } from "../lib/api";
+import { Task, User, forwardTask, getTasks, getUsers } from "../lib/api";
 import { useLiff } from "../components/LiffProvider";
 import { registerUser } from "../lib/register";
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -21,10 +24,17 @@ export default function Home() {
   const { isLoggedIn, profile, error: liffError } = useLiff();
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Fetch tasks
+  // Tabs state
+  const [activeTab, setActiveTab] = useState<"Board" | "Excom">("Board");
+
+  // State for Work Filter
+  const [activeWork, setActiveWork] = useState<string>("Resume");
+
+  // Fetch tasks & users
   useEffect(() => {
-    getTasks().then((fetchedTasks) => {
+    Promise.all([getTasks(), getUsers()]).then(([fetchedTasks, fetchedUsers]) => {
       setTasks(fetchedTasks);
+      setAllUsers(fetchedUsers);
     }).finally(() => {
       setIsFetching(false);
     });
@@ -42,40 +52,62 @@ export default function Home() {
 
   const currentUserName = profile ? profile.displayName : "User A (Guest)";
 
-  // Grouping Logic
-  const groupedTasks = tasks.reduce((acc, task) => {
-    if (!acc[task.mainTask]) {
-      acc[task.mainTask] = [];
-    }
-    acc[task.mainTask].push(task);
+  // --- Filtering & Helper ---
+
+  // 1. Filter by Tab (Board/Excom)
+  const tabTasks = tasks.filter(t => t.sheet === activeTab);
+
+  // 2. Get available Works for determining buttons (optional, or hardcoded)
+  // Let's hardcode for now based on image, but maybe dynamic is better?
+  // Image: Resume, ร่างรายงาน, Conduct
+  const workOptions = ["Resume", "ร่างรายงาน", "Conduct"]; // Could be dynamic: Array.from(new Set(tabTasks.map(t => t.work))).filter(Boolean)
+
+  // 3. Filter by Active Work
+  const workFilteredTasks = activeWork
+    ? tabTasks.filter(t => t.work === activeWork)
+    : tabTasks; // Should not happen if we force selection
+
+  // 4. Group by MeetingNo
+  // Record<MeetingNo, Task[]>
+  const tasksByMeeting = workFilteredTasks.reduce((acc, task) => {
+    const key = task.meetingNo || "No Meeting";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
 
-  /* Safe grouping logic */
-  const processGroupTasks = (groupTasks: Task[]) => {
-    // 1. Group by SubTask Name
-    const subGroups = groupTasks.reduce((acc, t) => {
-      const key = t.subTask ? String(t.subTask) : "Unknown";
+  // 5. Process tasks within Meeting (deduplicate subjects)
+  const processGroupTasks = (meetingTasks: Task[]) => {
+    const subGroups = meetingTasks.reduce((acc, t) => {
+      const key = t.subject;
       if (!acc[key]) acc[key] = [];
       acc[key].push(t);
       return acc;
     }, {} as Record<string, Task[]>);
 
-    // 2. Return the "Latest" task for each subtask
     return Object.values(subGroups).map(subList => {
-      const pending = subList.find(t => t.status === 'Pending');
-      if (pending) return pending;
-      return subList[subList.length - 1];
+      // Sort by order descending
+      const sorted = subList.sort((a, b) => b.order - a.order);
+      return sorted[0];
     });
   };
 
   /* History Map Logic */
   const historyMap = tasks.reduce((acc, t) => {
-    const key = (t.subTask ? String(t.subTask) : "Unknown") + t.mainTask;
+    // Key: Sheet + Work + Meeting + Subject
+    const key = `${t.sheet}|${t.work}|${t.meetingNo}|${t.subject}`;
     if (!acc[key]) acc[key] = [];
     acc[key].push(t);
     return acc;
   }, {} as Record<string, Task[]>);
+
+  // Ensure history is sorted by order
+  Object.keys(historyMap).forEach(k => {
+    historyMap[k].sort((a, b) => a.order - b.order);
+  });
+
+  // Modal State
+  const [modalMode, setModalMode] = useState<"SUBMIT" | "RETURN" | "CLOSE">("SUBMIT");
 
   const handleTaskClick = (task: Task) => {
     // Toggle expansion
@@ -86,8 +118,9 @@ export default function Home() {
     }
   };
 
-  const handleForwardClick = (task: Task) => {
+  const handleForwardClick = (task: Task, actionType: "SUBMIT" | "RETURN" | "CLOSE") => {
     setSelectedTask(task);
+    setModalMode(actionType);
     setIsModalOpen(true);
   };
 
@@ -95,32 +128,27 @@ export default function Home() {
     if (!selectedTask) return;
 
     setLoading(true);
-    const result = await forwardTask(selectedTask.id, remark, nextUserName, currentUserName);
+    // Pass modalMode as actionType
+    const result = await forwardTask(selectedTask, remark, nextUserName, currentUserName, modalMode);
     setLoading(false);
 
     if (result.success) {
-      setTasks((prev) => {
-        const updated = prev.map(t => t.id === selectedTask.id ? { ...t, status: 'Done' as const, remark } : t);
-        const newTask: Task = {
-          id: result.newId || "temp-" + Date.now(),
-          mainTask: selectedTask.mainTask,
-          subTask: selectedTask.subTask,
-          assignedToName: nextUserName,
-          status: 'Pending',
-          sentBy: currentUserName
-        };
-        return [...updated, newTask];
-      });
+      // Re-fetch or Optimistic Update?
+      // Optimistic is cleaner but complex with new ID logic.
+      // Let's re-fetch for safety with new backend logic.
+      setIsFetching(true);
+      getTasks().then((fetched) => setTasks(fetched)).finally(() => setIsFetching(false));
       setIsModalOpen(false);
       setSelectedTask(null);
+      setExpandedTaskId(null);
     } else {
       alert("Error: " + result.error);
     }
   };
 
-  // Calculate stats
-  const totalTasks = tasks.length; // Approximate
-  const completedTasks = tasks.filter(t => t.status === 'Done').length;
+  // Calculate stats for HEADER (Global for the tab)
+  const totalTasks = tabTasks.length;
+  const completedTasks = tabTasks.filter(t => !!t.status).length;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
@@ -130,24 +158,47 @@ export default function Home() {
       <div className="max-w-md mx-auto p-4">
         <DashboardHeader
           profile={profile ? profile : null}
-          totalTasks={tasks.length}
+          totalTasks={totalTasks}
           completedTasks={completedTasks}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          activeWork={activeWork}
+          onWorkChange={setActiveWork}
+          workOptions={workOptions}
         />
+
+        {/* Removed Cloud-like Tabs (moved to header) */}
 
         {isFetching ? (
           <div className="text-center text-slate-400 py-10">Loading tasks...</div>
         ) : (
-          Object.entries(groupedTasks).map(([mainTaskName, groupTasks]) => {
-            const latestSubTasks = processGroupTasks(groupTasks);
+          // Iterate over MEETINGS now
+          // Sort meetings?
+          Object.keys(tasksByMeeting).sort().map((meetingNo) => {
+            // Process tasks
+            const meetingTasks = tasksByMeeting[meetingNo];
+            const latestTasks = processGroupTasks(meetingTasks);
+
+            // Filter Inspectors
+            const inspectors = allUsers.filter(u => u.role === "Inspector");
+
+            // Get some meta from the first task properly
+            const firstTask = meetingTasks[0];
+            const cleanMeetingNo = meetingNo.replace("การประชุม", "").trim();
+            const title = `ครั้งที่ ${cleanMeetingNo}`; // e.g. "ครั้งที่ 1-1/69"
+            const subtitle = firstTask.remarkDate || ""; // e.g. "ส่งออกจาก ลออ..."
+
             return (
               <TaskGroupCard
-                key={mainTaskName}
-                mainTaskName={mainTaskName}
-                tasks={latestSubTasks}
+                key={meetingNo}
+                title={title}
+                subtitle={subtitle}
+                tasks={latestTasks}
                 expandedTaskId={expandedTaskId}
                 historyMap={historyMap}
                 onTaskClick={handleTaskClick}
                 onForwardClick={handleForwardClick}
+                inspectors={inspectors}
               />
             );
           })
@@ -158,6 +209,8 @@ export default function Home() {
           onClose={() => setIsModalOpen(false)}
           onConfirm={handleConfirmForward}
           loading={loading}
+          mode={modalMode}
+          responsibleName={selectedTask?.responsible}
         />
       </div>
     </div>
