@@ -69,37 +69,42 @@ export default function TaskGroupCard({
         .join(", ");
 
     return (
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-6 h-fit">
-            <div className="flex justify-between items-start mb-2">
+        <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-6 h-fit relative overflow-hidden">
+            {/* Decorative Top Line */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-200 to-amber-200 opacity-50"></div>
+
+            <div className="flex justify-between items-start mb-3 pt-2">
                 <div>
-                    <h3 className="text-lg font-bold text-blue-700">{title}</h3>
+                    <h3 className="text-lg font-bold text-slate-800">{title}</h3>
                 </div>
                 <div className="text-right">
-                    <span className="text-sm font-bold text-blue-700">
-                        สถานะปิดงาน {closedCount}/{total}
+                    <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                        ปิดงาน {closedCount}/{total}
                     </span>
                 </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-5">
                 {subtitle && (
-                    <p className="text-sm text-blue-700 font-bold mb-2">{subtitle}</p>
+                    <p className="text-sm text-red-600 font-bold mb-3">{subtitle}</p>
                 )}
 
-                {/* Holder Summary */}
-                <div className="text-xs text-blue-600 font-medium">
-                    <span className="mr-1">เอกสารรอตรวจอยู่ที่ :</span>
-                    {holderSummaryString}
+                {/* Holder Summary - Remove Box/Border */}
+                <div className="text-xs text-blue-600 leading-relaxed">
+                    <span className="font-bold mr-1 inline">เอกสารรอตรวจอยู่ที่ :</span>
+                    <span className="opacity-90">{holderSummaryString || "-"}</span>
                 </div>
             </div>
 
             {/* Task List */}
-            <div className="space-y-1">
-                <div className="grid grid-cols-12 gap-2 px-4 mb-2 text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                    <div className="col-span-4 pl-2">วาระ/เรื่อง</div>
-                    <div className="col-span-4 text-left pl-1">ผู้รับผิดชอบ</div>
-                    <div className="col-span-3 text-center">สถานะ</div>
-                    <div className="col-span-1 text-center">ด่วน</div>
+            <div className="space-y-2">
+                {/* Header - Only show on Desktop */}
+                {/* Header - Only show on Desktop */}
+                <div className="hidden sm:grid grid-cols-12 gap-4 px-4 mb-2 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                    <div className="col-span-2 pl-1">วาระ/เรื่อง</div>
+                    <div className="col-span-3 text-left pl-1">ผู้รับผิดชอบ</div>
+                    <div className="col-span-5 flex justify-center items-center">สถานะ</div>
+                    <div className="col-span-2 flex justify-center items-center">ด่วน</div>
                 </div>
 
                 {tasks.map(task => {
@@ -128,21 +133,23 @@ export default function TaskGroupCard({
                         // Only if currentHolder is explicitly set and different
                         if (task.currentHolder && holderName !== responsibleName) {
                             // Waiting for Inspector
-                            statusText = `ส่งตรวจ ${holderName}`;
-                            statusClass = "bg-blue-100 text-blue-600"; // Blue for Sending
+                            statusText = `ส่ง ${holderName}`;
+                            statusClass = "bg-[#FFF0F0] text-[#C00000]"; // Specific Red
                         } else {
                             // With Responsible
                             // Check last history for "Reviews"
+                            // History is sorted Descending (Newest first)
                             const sortedHistory = [...history].sort((a, b) => b.order - a.order);
 
                             let foundReview = false;
-                            for (let i = sortedHistory.length - 1; i >= 0; i--) {
+                            // Iterate from NEWEST (index 0) downwards
+                            for (let i = 0; i < sortedHistory.length; i++) {
                                 const h = sortedHistory[i];
                                 if (h.id === task.id) continue;
 
                                 if (h.status === "ตรวจแล้ว") {
-                                    statusText = `${formatName(h.currentHolder)} ตรวจแล้ว`;
-                                    statusClass = "bg-green-100 text-green-700"; // Green for Reviewed
+                                    statusText = `${formatName(h.currentHolder)} แล้ว`;
+                                    statusClass = "bg-[#EBF9ED] text-[#036338]"; // Specific Green
                                     foundReview = true;
                                     break;
                                 }

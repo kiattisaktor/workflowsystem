@@ -13,54 +13,59 @@ export default function TaskDetailInline({ currentTask, history, onForward }: Ta
     const canForward = !currentTask.status;
 
     return (
-        <div className="bg-slate-50/80 rounded-b-2xl p-4 mb-3 mx-2 -mt-3 border-x border-b border-indigo-100 shadow-inner relative z-0 animate-in slide-in-from-top-2 duration-200">
+        <div className="bg-gradient-to-b from-white to-slate-50/50 rounded-b-2xl p-4 mb-3 mx-2 -mt-4 border-x border-b border-indigo-50/50 shadow-inner relative z-0 animate-in slide-in-from-top-2 duration-200">
 
             {/* Note Section */}
-            <div className="mb-4">
+            <div className="mb-5 pt-2">
                 {currentTask.note && (
-                    <p className="text-xs text-slate-800 font-semibold mb-2">Note: {currentTask.note}</p>
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                        <p className="text-xs text-amber-900 font-bold mb-0 flex items-start gap-2">
+                            <span className="text-amber-400 mt-0.5">📌</span>
+                            {currentTask.note}
+                        </p>
+                    </div>
                 )}
             </div>
 
             {/* Action Button Area */}
             {canForward && (
-                <div className="flex justify-end gap-2 mb-4 flex-wrap">
+                <div className="grid grid-cols-3 gap-3 mb-4 px-2">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onForward(currentTask, "SUBMIT");
                         }}
-                        className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs py-2 px-4 rounded-xl flex items-center gap-1 transition-colors font-bold shadow-sm"
+                        className="col-span-1 bg-[#FFF0F0] hover:bg-red-50 text-[#C00000] text-[10px] py-1.5 px-3 rounded-full flex items-center justify-center gap-1 transition-colors font-bold border border-red-100 shadow-sm"
                     >
-                        ส่งตรวจ
+                        <span>ส่งตรวจ</span>
                     </button>
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onForward(currentTask, "RETURN");
                         }}
-                        className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs py-2 px-4 rounded-xl flex items-center gap-1 transition-colors font-bold shadow-sm"
+                        className="col-span-1 bg-[#EBF9ED] hover:bg-emerald-50 text-[#036338] text-[10px] py-1.5 px-3 rounded-full flex items-center justify-center gap-1 transition-colors font-bold border border-emerald-100 shadow-sm"
                     >
-                        ตรวจแล้ว
+                        <span>ตรวจแล้ว</span>
                     </button>
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onForward(currentTask, "CLOSE");
                         }}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs py-2 px-4 rounded-xl flex items-center gap-1 transition-colors font-bold shadow-sm border border-red-100"
+                        className="col-span-1 bg-slate-50 hover:bg-slate-100 text-slate-500 text-[10px] py-1.5 px-3 rounded-full flex items-center justify-center gap-1 transition-colors font-bold border border-slate-200 shadow-sm"
                     >
-                        ปิดงาน
+                        <span>ปิดงาน</span>
                     </button>
                 </div>
             )}
 
             {/* Timeline Area */}
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4">
-                <h4 className="text-sm font-bold text-slate-700 mb-3">Timeline การส่งต่อ</h4>
-                <div className="space-y-4">
+            <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Timeline</h4>
+                <div className="space-y-5 px-1">
                     {history.filter(h => h.status).length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">ยังไม่มีการดำเนินการ</p>
+                        <p className="text-xs text-slate-400 italic text-center py-2">ยังไม่มีการดำเนินการ</p>
                     ) : (
                         [...history].reverse().filter(h => h.status).map((item, index) => { // Reverse and Filter empty status
                             // Determine Action String
@@ -70,11 +75,6 @@ export default function TaskDetailInline({ currentTask, history, onForward }: Ta
 
                             // "ส่งตรวจ" Logic
                             if (item.status === "ส่งตรวจ") {
-                                // Add (ผู้รับผิดชอบ) if sender is responsible
-                                // We don't strictly know if they are 'Responsible' role, but usually yes.
-                                // Or we check vs item.responsible field?
-                                // item.responsible is the 'owner' of the task?
-                                // If item.currentHolder == item.responsible
                                 const senderLabel = item.currentHolder === item.responsible ? `${sender} (ผู้รับผิดชอบ)` : sender;
                                 actionText = `${senderLabel} > ส่งตรวจ ${receiver}`;
                             }
@@ -92,21 +92,23 @@ export default function TaskDetailInline({ currentTask, history, onForward }: Ta
                             }
 
                             return (
-                                <div key={index} className="flex gap-3 relative">
-                                    {/* Timeline Line (simplified) */}
-                                    <div className="w-1 bg-indigo-100 absolute top-2 bottom-[-16px] left-[5px] rounded-full"></div>
-                                    <div className="w-3 h-3 rounded-full bg-indigo-500 z-10 mt-1.5 shrink-0 border-2 border-white shadow-sm"></div>
+                                <div key={index} className="flex gap-4 relative">
+                                    {/* Timeline Line */}
+                                    <div className="w-0.5 bg-slate-100 absolute top-2 bottom-[-20px] left-[5px] z-0"></div>
+                                    <div className="w-3 h-3 rounded-full ring-4 ring-white bg-indigo-400 z-10 mt-1.5 shrink-0 shadow-sm relative"></div>
 
-                                    <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm w-full">
-                                        <p className="text-xs font-bold text-slate-700 mb-1">
-                                            {actionText}
-                                        </p>
-                                        {item.remark && (
-                                            <p className="text-xs text-slate-600 mb-2">"{item.remark}"</p>
-                                        )}
-                                        <p className="text-[10px] text-slate-400">
-                                            {item.timestamp ? new Date(item.timestamp).toLocaleString("th-TH") : "-"}
-                                        </p>
+                                    <div className="w-full">
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100/50">
+                                            <p className="text-xs font-bold text-slate-700 mb-1">
+                                                {actionText}
+                                            </p>
+                                            {item.remark && (
+                                                <p className="text-xs text-slate-600 mb-2 mt-2 bg-white p-2 rounded border border-slate-100">"{item.remark}"</p>
+                                            )}
+                                            <p className="text-[10px] text-slate-400 mt-1 text-right">
+                                                {item.timestamp ? new Date(item.timestamp).toLocaleString("th-TH") : "-"}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             );

@@ -189,7 +189,7 @@ function forwardTask(data) {
           "",        // Col K (AssignedTo) -> Empty
           "",        // Col L (Remark) -> Empty
           currentOrder + 1, // Col M (Order) -> Increment
-          new Date() // Col N (Timestamp)
+          ""  // Col N (Timestamp) -> Empty for new row
       ];
       sheet.appendRow(newRow);
   }
