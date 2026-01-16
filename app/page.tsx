@@ -50,7 +50,13 @@ export default function Home() {
     }
   }, [isLoggedIn, profile]);
 
-  const currentUserName = profile ? profile.displayName : "User A (Guest)";
+  // Resolve Nickname for "Check" action
+  // If we have profile and allUsers loaded, find the matching user
+  const currentUserInSheet = (profile && allUsers.length > 0)
+    ? allUsers.find(u => u.id === profile.userId)
+    : null;
+
+  const currentUserName = currentUserInSheet ? currentUserInSheet.nickName : (profile ? profile.displayName : "User A (Guest)");
 
   // --- Filtering & Helper ---
 
