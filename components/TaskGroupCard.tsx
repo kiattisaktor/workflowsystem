@@ -100,15 +100,9 @@ export default function TaskGroupCard({
             <div className="space-y-2">
                 {/* Header - Only show on Desktop */}
                 {/* Header - Show on All Screens */}
-                <div className="grid grid-cols-12 gap-2 px-2 sm:px-4 mb-2 text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                    <div className="col-span-2 pl-1">
-                        <span className="hidden md:inline">วาระ/เรื่อง</span>
-                        <span className="md:hidden">วาระ</span>
-                    </div>
-                    <div className="col-span-3 text-left pl-1">
-                        <span className="hidden md:inline">ผู้รับผิดชอบ</span>
-                        <span className="md:hidden">ผู้รับ</span>
-                    </div>
+                <div className="grid grid-cols-12 gap-2 px-2 sm:px-4 mb-2 text-[10px] md:text-xs text-black font-semibold uppercase tracking-wider">
+                    <div className="col-span-3 text-left">วาระ/เรื่อง</div>
+                    <div className="col-span-2 text-left">ผู้รับผิดชอบ</div>
                     <div className="col-span-5 flex justify-center items-center">สถานะ</div>
                     <div className="col-span-2 flex justify-center items-center">ด่วน</div>
                 </div>

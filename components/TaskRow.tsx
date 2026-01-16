@@ -21,10 +21,11 @@ export default function TaskRow({ task, onClick, statusText, statusClass }: Task
             onClick={() => onClick(task)}
             className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-4 mb-3 rounded-2xl transition-all cursor-pointer bg-white border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] hover:border-amber-100 items-center min-h-[64px]"
         >
-            {/* Col 1: Subject (2 spans) */}
-            <div className="col-span-2 flex items-center gap-3 overflow-hidden pl-1">
+            {/* Col 1: Subject (3 spans) - Increased from 2 */}
+            <div className="col-span-3 flex items-center gap-3 overflow-hidden pl-1">
                 <div className="flex flex-col min-w-0 w-full">
-                    <span title={task.subject} className="truncate text-xs font-bold text-slate-700 group-hover:text-amber-700 transition-colors">
+                    {/* Removed truncate to allow wrapping */}
+                    <span title={task.subject} className="text-xs font-bold text-slate-700 group-hover:text-amber-700 transition-colors whitespace-normal break-words">
                         {task.subject}
                     </span>
                 </div>
@@ -32,8 +33,8 @@ export default function TaskRow({ task, onClick, statusText, statusClass }: Task
 
             {/* Mobile Wrapper -> Contents to unwrap grid items */}
             <div className="contents">
-                {/* Col 2: Responsible (3 spans) */}
-                <div className="col-span-3 flex justify-start items-center">
+                {/* Col 2: Responsible (2 spans) - Reduced from 3 */}
+                <div className="col-span-2 flex justify-start items-center">
                     <div className="flex items-center gap-2">
                         {/* Mobile Label Removed */}
                         <span className="truncate text-[10px] sm:text-xs font-bold text-slate-600 bg-slate-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-slate-100 group-hover:border-amber-100 group-hover:bg-amber-50">
