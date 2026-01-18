@@ -18,6 +18,7 @@ export interface Task {
   meetingNo: string;
   remarkDate?: string;
   subject: string;
+  ecm?: string;
   note?: string;
   urgent: boolean;
   dueDate?: string;

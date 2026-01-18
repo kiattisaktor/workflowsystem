@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Task, User } from "../lib/api";
 import { formatName } from "../lib/format";
 import TaskRow from "./TaskRow";
 import TaskDetailInline from "./TaskDetailInline";
+import ReportModal from "./ReportModal";
 
 interface TaskGroupCardProps {
     title: string;
@@ -12,6 +14,7 @@ interface TaskGroupCardProps {
     onTaskClick: (task: Task) => void;
     onForwardClick: (task: Task, actionType: "SUBMIT" | "RETURN" | "CLOSE") => void;
     inspectors?: User[];
+    showReportButton?: boolean;
 }
 
 export default function TaskGroupCard({
@@ -22,8 +25,11 @@ export default function TaskGroupCard({
     historyMap,
     onTaskClick,
     onForwardClick,
-    inspectors = []
+    inspectors = [],
+    showReportButton = false
 }: TaskGroupCardProps) {
+    const [isReportOpen, setIsReportOpen] = useState(false);
+
     // Calculate specific stats for this group if needed
     const total = tasks.length;
     // "Closed" means status is "ปิดงาน" (CLOSE action)
@@ -69,113 +75,132 @@ export default function TaskGroupCard({
         .join(", ");
 
     return (
-        <div className="bg-white rounded-[2rem] p-2 sm:p-5 shadow-sm border border-slate-100 mb-6 h-fit relative overflow-hidden">
-            {/* Decorative Top Line */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-200 to-amber-200 opacity-50"></div>
+        <>
+            <div className="bg-white rounded-[2rem] p-2 sm:p-5 shadow-sm border border-slate-100 mb-6 h-fit relative overflow-hidden">
+                {/* Decorative Top Line */}
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-200 to-amber-200 opacity-50"></div>
 
-            <div className="flex justify-between items-start mb-3 pt-2 px-2 sm:px-0">
-                <div>
-                    <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-                </div>
-                <div className="text-right">
-                    <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                        ปิดงาน {closedCount}/{total}
-                    </span>
-                </div>
-            </div>
-
-            <div className="mb-5 px-2 sm:px-0">
-                {subtitle && (
-                    <p className="text-sm text-red-600 font-bold mb-3">{subtitle}</p>
-                )}
-
-                {/* Holder Summary - Remove Box/Border */}
-                <div className="text-xs text-blue-600 leading-relaxed">
-                    <span className="font-bold mr-1 inline">เอกสารรอตรวจอยู่ที่ :</span>
-                    <span className="opacity-90">{holderSummaryString || "-"}</span>
-                </div>
-            </div>
-
-            {/* Task List */}
-            <div className="space-y-2">
-                {/* Header - Only show on Desktop */}
-                {/* Header - Show on All Screens */}
-                <div className="grid grid-cols-12 gap-2 px-2 sm:px-4 mb-2 text-[10px] md:text-xs text-black font-semibold uppercase tracking-wider">
-                    <div className="col-span-3 text-left">วาระ/เรื่อง</div>
-                    <div className="col-span-2 text-left">ผู้รับผิดชอบ</div>
-                    <div className="col-span-5 flex justify-center items-center">สถานะ</div>
-                    <div className="col-span-2 flex justify-center items-center">ด่วน</div>
+                <div className="flex justify-between items-start mb-3 pt-2 px-2 sm:px-0">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-2">
+                        <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                            ปิดงาน {closedCount}/{total}
+                        </span>
+                        {showReportButton && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsReportOpen(true);
+                                }}
+                                className="bg-[#F8F9FF] text-indigo-600 hover:bg-indigo-50 border border-indigo-100 text-[10px] sm:text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                            >
+                                <span>สรุปสถานะ</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {tasks.map(task => {
-                    const isExpanded = expandedTaskId === task.id;
-                    const history = historyMap[`${task.sheet}|${task.work}|${task.meetingNo}|${task.subject}`] || [];
+                <div className="mb-5 px-2 sm:px-0">
+                    {subtitle && (
+                        <p className="text-sm text-red-600 font-bold mb-3">{subtitle}</p>
+                    )}
 
-                    // Logic for Status Badge
-                    let statusText = "";
-                    let statusClass = "";
+                    {/* Holder Summary - Remove Box/Border */}
+                    <div className="text-xs text-blue-600 leading-relaxed">
+                        <span className="font-bold mr-1 inline">เอกสารรอตรวจอยู่ที่ :</span>
+                        <span className="opacity-90">{holderSummaryString || "-"}</span>
+                    </div>
+                </div>
 
-                    if (task.status === "ปิดงาน") {
-                        statusText = "ปิดงาน";
-                        statusClass = "bg-slate-100 text-slate-400";
-                    } else if (task.status && task.status !== "Pending") {
-                        // Explicit status (e.g. from manual edits), excluding "Pending"
-                        statusText = task.status;
-                        statusClass = "bg-emerald-100 text-emerald-600";
-                    } else {
-                        // Empty status (or Pending)
+                {/* Task List */}
+                <div className="space-y-2">
+                    {/* Header - Show on All Screens */}
+                    <div className="grid grid-cols-12 gap-2 px-2 sm:px-4 mb-2 text-[10px] md:text-xs text-black font-semibold uppercase tracking-wider">
+                        <div className="col-span-3 text-left">วาระ/เรื่อง</div>
+                        <div className="col-span-2 text-left">ผู้รับผิดชอบ</div>
+                        <div className="col-span-5 flex justify-center items-center">สถานะ</div>
+                        <div className="col-span-2 flex justify-center items-center">ด่วน</div>
+                    </div>
 
-                        // Normalize names for comparison
-                        const holderName = formatName(task.currentHolder || task.responsible);
-                        const responsibleName = formatName(task.responsible);
+                    {tasks.map(task => {
+                        const isExpanded = expandedTaskId === task.id;
+                        const history = historyMap[`${task.sheet}|${task.work}|${task.meetingNo}|${task.subject}`] || [];
 
-                        // Check if held by someone else (Inspector)
-                        // Only if currentHolder is explicitly set and different
-                        if (task.currentHolder && holderName !== responsibleName) {
-                            // Waiting for Inspector
-                            statusText = `ส่ง ${holderName}`;
-                            statusClass = "bg-[#FFF0F0] text-[#C00000]"; // Specific Red
+                        // Logic for Status Badge
+                        let statusText = "";
+                        let statusClass = "";
+
+                        if (task.status === "ปิดงาน") {
+                            statusText = "ปิดงาน";
+                            statusClass = "bg-slate-100 text-slate-400";
+                        } else if (task.status && task.status !== "Pending") {
+                            // Explicit status (e.g. from manual edits), excluding "Pending"
+                            statusText = task.status;
+                            statusClass = "bg-emerald-100 text-emerald-600";
                         } else {
-                            // With Responsible
-                            // Check last history for "Reviews"
-                            // History is sorted Descending (Newest first)
-                            const sortedHistory = [...history].sort((a, b) => b.order - a.order);
+                            // Empty status (or Pending)
 
-                            let foundReview = false;
-                            // Iterate from NEWEST (index 0) downwards
-                            for (let i = 0; i < sortedHistory.length; i++) {
-                                const h = sortedHistory[i];
-                                if (h.id === task.id) continue;
+                            // Normalize names for comparison
+                            const holderName = formatName(task.currentHolder || task.responsible);
+                            const responsibleName = formatName(task.responsible);
 
-                                if (h.status === "ตรวจแล้ว") {
-                                    statusText = `${formatName(h.currentHolder)} แล้ว`;
-                                    statusClass = "bg-[#EBF9ED] text-[#036338]"; // Specific Green
-                                    foundReview = true;
-                                    break;
+                            // Check if held by someone else (Inspector)
+                            // Only if currentHolder is explicitly set and different
+                            if (task.currentHolder && holderName !== responsibleName) {
+                                // Waiting for Inspector
+                                statusText = `ส่ง ${holderName}`;
+                                statusClass = "bg-[#FFF0F0] text-[#C00000]"; // Specific Red
+                            } else {
+                                // With Responsible
+                                // Check last history for "Reviews"
+                                // History is sorted Descending (Newest first)
+                                const sortedHistory = [...history].sort((a, b) => b.order - a.order);
+
+                                let foundReview = false;
+                                // Iterate from NEWEST (index 0) downwards
+                                for (let i = 0; i < sortedHistory.length; i++) {
+                                    const h = sortedHistory[i];
+                                    if (h.id === task.id) continue;
+
+                                    if (h.status === "ตรวจแล้ว") {
+                                        statusText = `${formatName(h.currentHolder)} แล้ว`;
+                                        statusClass = "bg-[#EBF9ED] text-[#036338]"; // Specific Green
+                                        foundReview = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    return (
-                        <div key={task.id}>
-                            <TaskRow
-                                task={task}
-                                onClick={onTaskClick}
-                                statusText={statusText}
-                                statusClass={statusClass}
-                            />
-                            {isExpanded && (
-                                <TaskDetailInline
-                                    currentTask={task}
-                                    history={history}
-                                    onForward={onForwardClick}
+                        return (
+                            <div key={task.id}>
+                                <TaskRow
+                                    task={task}
+                                    onClick={onTaskClick}
+                                    statusText={statusText}
+                                    statusClass={statusClass}
                                 />
-                            )}
-                        </div>
-                    );
-                })}
+                                {isExpanded && (
+                                    <TaskDetailInline
+                                        currentTask={task}
+                                        history={history}
+                                        onForward={onForwardClick}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
-        </div>
+
+            <ReportModal
+                isOpen={isReportOpen}
+                onClose={() => setIsReportOpen(false)}
+                title={title}
+                tasks={tasks}
+            />
+        </>
     );
 }

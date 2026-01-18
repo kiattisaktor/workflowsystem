@@ -15,17 +15,30 @@ export default function TaskDetailInline({ currentTask, history, onForward }: Ta
     return (
         <div className="bg-gradient-to-b from-white to-slate-50/50 rounded-b-2xl p-2 sm:p-4 mb-3 mx-0 sm:mx-2 -mt-4 border-x border-b border-indigo-50/50 shadow-inner relative z-0 animate-in slide-in-from-top-2 duration-200">
 
-            {/* Note Section */}
-            <div className="mb-5 pt-2">
-                {currentTask.note && (
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                        <p className="text-xs text-amber-900 font-bold mb-0 flex items-start gap-2">
-                            <span className="text-amber-400 mt-0.5">📌</span>
-                            {currentTask.note}
-                        </p>
-                    </div>
-                )}
-            </div>
+            {/* ECM and Note Section */}
+            {/* ECM and Note Section */}
+            {(currentTask.ecm || currentTask.note) && (
+                <div className="mb-5 pt-2 space-y-2">
+                    {currentTask.ecm && (
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                            <p className="text-xs text-amber-900 font-bold mb-0 flex items-start gap-2">
+                                <span className="text-amber-400 mt-0.5">📌</span>
+                                <span className="font-bold">ECM: </span>
+                                {currentTask.ecm}
+                            </p>
+                        </div>
+                    )}
+                    {currentTask.note && (
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                            <p className="text-xs text-amber-900 font-bold mb-0 flex items-start gap-2">
+                                <span className="text-amber-400 mt-0.5">📌</span>
+                                <span className="font-bold">Note: </span>
+                                {currentTask.note}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Action Button Area */}
             {canForward && (

@@ -46,7 +46,6 @@ export default function Home() {
       setIsRegistering(true);
       registerUser(profile.userId, profile.displayName)
         .then((res) => {
-          console.log("Registration:", res);
           // Refresh users to get the new role immediately
           getUsers().then(setAllUsers);
         })
@@ -234,6 +233,7 @@ export default function Home() {
                 onTaskClick={handleTaskClick}
                 onForwardClick={handleForwardClick}
                 inspectors={inspectors}
+                showReportButton={activeWork === "Resume"}
               />
             );
           })

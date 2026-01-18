@@ -33,10 +33,9 @@ function getTasks() {
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
         if (row[0]) { // If 'Work' column exists
-            // Map columns A-M (0-12)
-            // A=Work, B=Meeting, C=RemarkDate, D=Subject, E=Note, F=Urgent, G=Due, H=Resp, I=Holder, J=Status, K=AssignedTo, L=Remark, M=Order, N=Timestamp
-            // We use row index + Sheet as ID for now to be distinct
-            // Actually, let's create a composite ID: Sheet-Work-Meeting-Subject-Order-RowIndex
+            // Map columns A-O (0-14)
+            // A=Work, B=Meeting, C=RemarkDate, D=Subject, E=ECM, F=Note, G=Urgent, H=Due, I=Resp, J=Holder, K=Status, L=AssignedTo, M=Remark, N=Order, O=Timestamp
+            
             const uniqueId = Utilities.base64EncodeWebSafe(sheetName + "-" + i);
             
             allTasks.push({
@@ -47,16 +46,17 @@ function getTasks() {
                 meetingNo: String(row[1]),
                 remarkDate: String(row[2]),
                 subject: String(row[3]),
-                note: String(row[4]),
-                urgent: Boolean(row[5]),
-                dueDate: row[6] ? Utilities.formatDate(new Date(row[6]), "GMT+7", "dd/MM/yyyy") : "",
-                responsible: String(row[7]),
-                currentHolder: String(row[8]), // งานอยู่ที่
-                status: String(row[9]),
-                assignedTo: String(row[10]),
-                remark: String(row[11]),
-                order: Number(row[12]) || 0,
-                timestamp: String(row[13])
+                ecm: String(row[4]), // ECM Column
+                note: String(row[5]),
+                urgent: Boolean(row[6]),
+                dueDate: row[7] ? Utilities.formatDate(new Date(row[7]), "GMT+7", "dd/MM/yyyy") : "",
+                responsible: String(row[8]),
+                currentHolder: String(row[9]), 
+                status: String(row[10]),
+                assignedTo: String(row[11]),
+                remark: String(row[12]),
+                order: Number(row[13]) || 0,
+                timestamp: String(row[14])
             });
         }
     }
@@ -148,18 +148,20 @@ function forwardTask(data) {
   const rIdx = Number(rowIndex);
   
   // 1. Get current row data
-  const range = sheet.getRange(rIdx, 1, 1, 14);
+  // Updated range to read 15 columns (A-O)
+  const range = sheet.getRange(rIdx, 1, 1, 15);
   const values = range.getValues()[0];
-  const currentOrder = Number(values[12]) || 0; 
+  const currentOrder = Number(values[13]) || 0; 
   
   // Extract task details for notification
+  // A=Work(0), B=Meeting(1), C=RemarkDate(2), D=Subject(3), E=ECM(4), F=Note(5), G=Urgent(6), H=Due(7), I=Resp(8), J=Holder(9)
+  // K=Status(10), L=AssignedTo(11), M=Remark(12), N=Order(13), O=Timestamp(14)
+
   const taskWork = values[0];
   const taskMeeting = values[1];
   const taskSubject = values[3];
-  const taskResponsible = values[7];
+  const taskResponsible = values[8]; 
 
-  // Col J (Status/Col 10), K (AssignedTo/Col 11), L (Remark/Col 12), N (Timestamp/Col 14)
-  
   let oldRowStatus = "ส่งตรวจ"; // Default for SUBMIT
   let newRowStatus = ""; // Default Pending
   let nextUser = nextUserName;
@@ -170,11 +172,8 @@ function forwardTask(data) {
 
   if (actionType === "SUBMIT") {
       // Send for Review
-      // Target: Inspector (Next User)
       targetNickName = nextUserName;
       
-      // Message: ส่งตรวจ - [Work] [SheetName] [Meeting] [Subject] - [Responsible]
-      // Note: [Remark]
       message = `ส่งตรวจ - ${taskWork} ${sheetName} ${taskMeeting} ${taskSubject} - ${taskResponsible}`;
       if (remark) {
           message += `\nNote : ${remark}`;
@@ -182,16 +181,8 @@ function forwardTask(data) {
       
   } else if (actionType === "RETURN") {
       oldRowStatus = "ตรวจแล้ว";
-      // Next user is typically the responsible person (Col H / Index 7)
-      // BUT frontend should pass the correct 'nextUserName' (Responsible).
-      // We accept nextUserName from frontend for flexibility.
-      
-      // Target: Responsible Person (Owner)
-      // For RETURN, the frontend usually passes the Responsible Name as 'nextUserName' (or we use taskResponsible)
       targetNickName = taskResponsible; // Send back to owner
 
-      // Message: [Reviewer] ตรวจแล้ว - [Work] [SheetName] [Meeting] [Subject]
-      // Note: [Remark]
       message = `${currentUserName} ตรวจแล้ว - ${taskWork} ${sheetName} ${taskMeeting} ${taskSubject}`;
       if (remark) {
           message += `\nNote : ${remark}`;
@@ -200,15 +191,14 @@ function forwardTask(data) {
   } else if (actionType === "CLOSE") {
       oldRowStatus = "ปิดงาน";
       nextUser = ""; // No one next
-      // No notification for CLOSE requested yet, or maybe to Owner?
-      // Leaving blank for now as per requirement.
   }
 
   // 2. Update OLD ROW
-  sheet.getRange(rIdx, 10).setValue(oldRowStatus);
-  sheet.getRange(rIdx, 11).setValue(nextUser || "-"); // If close, set -
-  sheet.getRange(rIdx, 12).setValue(remark);
-  sheet.getRange(rIdx, 14).setValue(new Date());
+  // Status is at Col K (11), AssignedTo at L (12), Remark at M (13), Timestamp at O (15)
+  sheet.getRange(rIdx, 11).setValue(oldRowStatus);
+  sheet.getRange(rIdx, 12).setValue(nextUser || "-"); 
+  sheet.getRange(rIdx, 13).setValue(remark);
+  sheet.getRange(rIdx, 15).setValue(new Date());
 
   // 3. Create NEW ROW (Only if NOT Close)
   if (actionType !== "CLOSE") {
@@ -217,16 +207,17 @@ function forwardTask(data) {
           values[1], // Meeting
           values[2], // RemarkDate
           values[3], // Subject
-          values[4], // Note
-          values[5], // Urgent
-          values[6], // DueDate
-          values[7], // Responsible
-          nextUser,  // Col I (งานอยู่ที่) -> New Owner
-          "",        // Col J (Status) -> Empty (Pending)
-          "",        // Col K (AssignedTo) -> Empty
-          "",        // Col L (Remark) -> Empty
-          currentOrder + 1, // Col M (Order) -> Increment
-          ""  // Col N (Timestamp) -> Empty for new row
+          values[4], // ECM (Copy over)
+          values[5], // Note
+          values[6], // Urgent
+          values[7], // DueDate
+          values[8], // Responsible
+          nextUser,  // Col J (Holder) -> New Owner
+          "",        // Col K (Status) -> Empty
+          "",        // Col L (AssignedTo) -> Empty
+          "",        // Col M (Remark) -> Empty
+          currentOrder + 1, // Col N (Order) -> Increment
+          ""  // Col O (Timestamp) -> Empty
       ];
       sheet.appendRow(newRow);
   }
