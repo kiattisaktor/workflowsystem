@@ -115,8 +115,10 @@ function loginUser(data) {
         const rowUser = String(values[i][4]).trim();
         const rowPass = String(values[i][5]).trim();
         
-        // Simple comparison (In production, use hashing!)
-        if (rowUser === username && rowPass === password) {
+        // Hash the incoming password for comparison
+        const hashedIncoming = hashPassword(password);
+        
+        if (rowUser === username && rowPass === hashedIncoming) {
              const user = {
                 id: values[i][0], // lineUserId (might be empty if registered via web only? Assuming Line is primary for now or mixed)
                 name: values[i][1],
@@ -145,7 +147,8 @@ function setPassword(data) {
     for (let i = 1; i < values.length; i++) {
         if (values[i][0] === lineUserId) {
             // Update Password at Col F (index 5) -> Column 6
-            sheet.getRange(i + 1, 6).setValue(newPassword);
+            const hashedPassword = hashPassword(newPassword);
+            sheet.getRange(i + 1, 6).setValue(hashedPassword);
             return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         }
     }
@@ -300,6 +303,22 @@ function forwardTask(data) {
 
 
 // --- HELPER FUNCTIONS ---
+
+function hashPassword(password) {
+  const rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password);
+  let txtHash = '';
+  for (let i = 0; i < rawHash.length; i++) {
+    let hashVal = rawHash[i];
+    if (hashVal < 0) {
+      hashVal += 256;
+    }
+    if (hashVal.toString(16).length == 1) {
+      txtHash += '0';
+    }
+    txtHash += hashVal.toString(16);
+  }
+  return txtHash;
+}
 
 function getLineUserIdByNickName(nickName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();

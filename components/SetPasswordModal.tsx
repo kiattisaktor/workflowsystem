@@ -25,8 +25,8 @@ export default function SetPasswordModal({ isOpen, onClose, lineUserId }: SetPas
             setError("รหัสผ่านไม่ตรงกัน");
             return;
         }
-        if (password.length < 4) {
-            setError("รหัสผ่านต้องมีความยาวอย่างน้อย 4 ตัวอักษร");
+        if (password.length < 6) {
+            setError("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
             return;
         }
 
