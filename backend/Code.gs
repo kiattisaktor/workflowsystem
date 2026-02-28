@@ -194,7 +194,8 @@ function getUsers() {
 }
 
 // --- CONFIGURATION ---
-const CHANNEL_ACCESS_TOKEN = '+VdnkJt3aFnhmoSxHZ42LlA8LGHRTM6Pmkae/x2rqzkpbenMvVwBR4EyiIk07LeBCr/kf/o762Zvj1dggKqEKwx6/B0sp9o1bb/1RtSo1mQTGm1Pkf1T4DPniDsGCyfUdOxlX6SuIf5Gdgaxnc4oyAdB04t89/1O/w1cDnyilFU='; // *** REPLACE WITH YOUR TOKEN ***
+const CHANNEL_ACCESS_TOKEN_RESUME = '+VdnkJt3aFnhmoSxHZ42LlA8LGHRTM6Pmkae/x2rqzkpbenMvVwBR4EyiIk07LeBCr/kf/o762Zvj1dggKqEKwx6/B0sp9o1bb/1RtSo1mQTGm1Pkf1T4DPniDsGCyfUdOxlX6SuIf5Gdgaxnc4oyAdB04t89/1O/w1cDnyilFU='; // *** RESUME BOT TOKEN (Original) ***
+const CHANNEL_ACCESS_TOKEN_REPORT = 'hghS7a0v9UAm+UR1pLPoLc3N3GgQKHOOmu6+gZ7A6YLPCoINy1tQPqLUALeOZJHB5lJyUK6KSXLwQM6v91wFmTrCw2nVcCTNH4/8gosCpSxvuoPRUIBwu+xwUEc4Gkj8yIOnLGMEXnh3as93uBqltAdB04t89/1O/w1cDnyilFU='; // *** REPORT/CONDUCT BOT TOKEN ***
 
 function forwardTask(data) {
   const { sheetName, rowIndex, remark, nextUserName, currentUserName, actionType, work, subject, meetingNo } = data;
@@ -326,7 +327,15 @@ function forwardTask(data) {
       const lineUserId = getLineUserIdByNickName(targetNickName);
       if (lineUserId) {
           Logger.log("Found Line User ID: " + lineUserId);
-          sendLineMessage(lineUserId, message);
+          
+          // Decide which bot to use based on taskWork
+          let botType = "RESUME";
+          const workStr = String(taskWork).toLowerCase();
+          if (workStr.includes("ร่างรายงาน") || workStr.includes("conduct")) {
+              botType = "REPORT";
+          }
+          
+          sendLineMessage(lineUserId, message, botType);
       } else {
           Logger.log("ERROR: Could not find Line User ID for NickName: " + targetNickName);
       }
@@ -372,9 +381,11 @@ function getLineUserIdByNickName(nickName) {
   return null;
 }
 
-function sendLineMessage(userId, message) {
-  if (!CHANNEL_ACCESS_TOKEN) {
-      Logger.log("Channel Access Token not configured.");
+function sendLineMessage(userId, message, botType) {
+  const token = (botType === "REPORT") ? CHANNEL_ACCESS_TOKEN_REPORT : CHANNEL_ACCESS_TOKEN_RESUME;
+
+  if (!token) {
+      Logger.log("Channel Access Token not configured for bot: " + botType);
       return;
   }
 
@@ -393,7 +404,7 @@ function sendLineMessage(userId, message) {
     method: 'post',
     contentType: 'application/json',
     headers: {
-      'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN
+      'Authorization': 'Bearer ' + token
     },
     payload: JSON.stringify(data),
     muteHttpExceptions: true
