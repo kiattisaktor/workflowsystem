@@ -1,25 +1,40 @@
-import { User } from "./api"; // Re-using User interface if compatible, or define new one
-
-const GAS_API_URL = process.env.NEXT_PUBLIC_GAS_API_URL || '';
+import { supabase } from './supabase';
 
 export async function registerUser(lineUserId: string, displayName: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    if (!GAS_API_URL) {
-        console.log("Mocking registerUser:", { lineUserId, displayName });
-        return { success: true, message: "Mock registration success" };
+  try {
+    // Check if user already exists
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('line_user_id', lineUserId)
+      .single();
+
+    if (existing) {
+      return { success: true, message: 'User already registered' };
     }
 
-    try {
-        const response = await fetch(GAS_API_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "registerUser",
-                lineUserId,
-                displayName,
-            }),
-        });
-        return await response.json();
-    } catch (error) {
-        console.error("Error registering user:", error);
-        return { success: false, error: String(error) };
+    // Insert new user
+    const { error } = await supabase
+      .from('users')
+      .insert({
+        line_user_id: lineUserId,
+        display_name: displayName,
+        nick_name: '',
+        role: 'No Role',
+        user_manager: '',
+        password_hash: '',
+        is_admin: false,
+        can_create_task: false,
+      });
+
+    if (error) {
+      console.error('Error registering user:', error);
+      return { success: false, error: error.message };
     }
+
+    return { success: true, message: 'User registered' };
+  } catch (error) {
+    console.error('Error registering user:', error);
+    return { success: false, error: String(error) };
+  }
 }

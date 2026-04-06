@@ -105,7 +105,12 @@ export default function Home() {
 
   // 5. Process tasks within Meeting (deduplicate subjects)
   const processGroupTasks = (meetingTasks: Task[]) => {
-    const subGroups = meetingTasks.reduce((acc, t) => {
+    // Filter out rows where subject_id is null (meeting without subjects)
+    // Those rows should not be rendered as individual TaskRows
+    const validTasks = meetingTasks.filter(t => !!t.subject_id);
+    if (validTasks.length === 0) return [];
+
+    const subGroups = validTasks.reduce((acc, t) => {
       const key = t.subject;
       if (!acc[key]) acc[key] = [];
       acc[key].push(t);
@@ -116,7 +121,9 @@ export default function Home() {
       // Sort by order descending
       const sorted = subList.sort((a, b) => b.order - a.order);
       return sorted[0];
-    });
+    }).sort((a, b) =>
+      (a.subject || "").localeCompare(b.subject || "", undefined, { numeric: true, sensitivity: 'base' })
+    );
   };
 
   /* History Map Logic */
@@ -132,6 +139,32 @@ export default function Home() {
   Object.keys(historyMap).forEach(k => {
     historyMap[k].sort((a, b) => a.order - b.order);
   });
+
+  // --- Calculate Notification Counts for Inspector ---
+  // A task is "waiting" for the user if the LATEST action's currentHolder matches them
+  const allWaitingTasks = Object.values(historyMap).map(history => {
+    // History is sorted by order ASC, so the last one is the latest
+    return history[history.length - 1];
+  }).filter(latest => {
+    if (latest.status === "ปิดงาน") return false;
+    if (!latest.currentHolder || !user) return false;
+    // Match against formal Name or NickName
+    return latest.currentHolder === user.name ||
+      (user.nickName && latest.currentHolder === user.nickName);
+  });
+
+  const tabCounts: Record<string, number> = {
+    Board: allWaitingTasks.filter(t => t.sheet === "Board").length,
+    Excom: allWaitingTasks.filter(t => t.sheet === "Excom").length,
+  };
+
+  // 📈 Work Counts should be Context-Aware based on activeTab
+  const currentTabWaiting = allWaitingTasks.filter(t => t.sheet === activeTab);
+  const workCounts: Record<string, number> = {};
+  workOptions.forEach(option => {
+    workCounts[option] = currentTabWaiting.filter(t => t.work === option).length;
+  });
+
 
   // Modal State
   const [modalMode, setModalMode] = useState<"SUBMIT" | "RETURN" | "CLOSE">("SUBMIT");
@@ -155,8 +188,20 @@ export default function Home() {
     if (!selectedTask) return;
 
     setLoading(true);
-    // Pass modalMode as actionType
-    const result = await forwardTask(selectedTask, remark, nextUserName, currentUserName, modalMode);
+    
+    let result;
+    // Chain Submit Logic: 
+    // If mode is SUBMIT but the person clicking is NOT the responsible person, 
+    // it means an Inspector is forwarding to another Inspector.
+    const isChainSubmit = modalMode === "SUBMIT" && selectedTask.responsible !== currentUserName;
+
+    if (isChainSubmit) {
+      const { chainForwardTask } = await import("../lib/api");
+      result = await chainForwardTask(selectedTask, remark, nextUserName, currentUserName);
+    } else {
+      result = await forwardTask(selectedTask, remark, nextUserName, currentUserName, modalMode);
+    }
+    
     setLoading(false);
 
     if (result.success) {
@@ -173,6 +218,13 @@ export default function Home() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsFetching(true);
+    const fetchedTasks = await getTasks();
+    setTasks(fetchedTasks);
+    setIsFetching(false);
+  };
+
   // Calculate stats for HEADER (Global for the tab)
   const totalTasks = tabTasks.length;
   const completedTasks = tabTasks.filter(t => !!t.status).length;
@@ -184,7 +236,7 @@ export default function Home() {
 
   if (!isAuthenticated) return null; // Will redirect
 
-  if (user && user.role === "No Role" && authMethod === "LINE") {
+  if (user && user.role === "No Role") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
@@ -233,6 +285,10 @@ export default function Home() {
           onWorkChange={setActiveWork}
           workOptions={workOptions}
           onLogout={authMethod === "WEB" ? logout : undefined}
+          canCreateTask={user?.canCreateTask || false}
+          isAdmin={user?.isAdmin || false}
+          tabCounts={tabCounts}
+          workCounts={workCounts}
         />
 
         {/* Removed Cloud-like Tabs (moved to header) */}
@@ -254,20 +310,20 @@ export default function Home() {
             const firstTask = meetingTasks[0];
             const cleanMeetingNo = meetingNo.replace("การประชุม", "").trim();
             const title = `ครั้งที่ ${cleanMeetingNo}`; // e.g. "ครั้งที่ 1-1/69"
-            const subtitle = firstTask.remarkDate || ""; // e.g. "ส่งออกจาก ลออ..."
-
             return (
               <TaskGroupCard
                 key={meetingNo}
-                title={title}
-                subtitle={subtitle}
+                title={`ครั้งที่ ${meetingNo}`}
+                subtitle={meetingTasks[0]?.remarkDate}
                 tasks={latestTasks}
                 expandedTaskId={expandedTaskId}
                 historyMap={historyMap}
                 onTaskClick={handleTaskClick}
                 onForwardClick={handleForwardClick}
-                inspectors={inspectors}
-                showReportButton={activeWork === "Resume"}
+                allUsers={allUsers}
+                isAdmin={!!user?.isAdmin}
+                onRefresh={handleRefresh}
+                meetingId={meetingTasks[0]?.meeting_id}
               />
             );
           })

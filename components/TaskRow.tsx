@@ -1,4 +1,4 @@
-import { Task } from "../lib/api";
+import { Task, toggleSubjectDelete, reopenTask } from "../lib/api";
 import { formatName } from "../lib/format";
 
 interface TaskRowProps {
@@ -6,9 +6,12 @@ interface TaskRowProps {
     onClick: (task: Task) => void;
     statusText?: string;
     statusClass?: string;
+    isAdmin?: boolean;
+    userRole?: string;
+    onRefresh?: () => void;
 }
 
-export default function TaskRow({ task, onClick, statusText, statusClass }: TaskRowProps) {
+export default function TaskRow({ task, onClick, statusText, statusClass, isAdmin, userRole, onRefresh }: TaskRowProps) {
     // Status Logic:
     // If status is "ปิดงาน", use specific text/style.
     const isClosed = task.status === "ปิดงาน";
@@ -43,8 +46,8 @@ export default function TaskRow({ task, onClick, statusText, statusClass }: Task
                     </div>
                 </div>
 
-                {/* Col 3: Status (5 spans) */}
-                <div className="col-span-5 flex justify-center items-center">
+                {/* Col 3: Status (4 spans) - Reduced from 5 */}
+                <div className="col-span-4 flex justify-center items-center">
                     {statusText && (
                         <span className={`text-[10px] font-bold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-sm whitespace-normal break-words text-center leading-tight ${statusClass || 'bg-slate-100 text-slate-400'}`}>
                             {statusText}
@@ -65,6 +68,28 @@ export default function TaskRow({ task, onClick, statusText, statusClass }: Task
                         </div>
                     ) : (
                         <span className="block w-6"></span>
+                    )}
+                </div>
+
+                {/* Col 5: Actions (1 span) - NEW */}
+                <div className="col-span-1 flex flex-col gap-1.5 justify-center items-center">
+                    {isAdmin && (
+                        <button
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                const subjectId = task.subject_id;
+                                if (!subjectId) return;
+                                if (confirm("ต้องการลบวาระนี้ใช่หรือไม่? (ข้อมูลจะถูกย้ายไปที่ถังขยะ)")) {
+                                    const res = await toggleSubjectDelete(subjectId, true);
+                                    if (res.success && onRefresh) onRefresh();
+                                    else if (!res.success) alert("Error: " + res.error);
+                                }
+                            }}
+                            className="text-[9px] font-bold bg-red-50 text-red-500 border border-red-100 px-2 py-0.5 rounded-lg hover:bg-red-100 transition-all active:scale-95 whitespace-nowrap shadow-xs"
+                            title="ลบ"
+                        >
+                            ลบ
+                        </button>
                     )}
                 </div>
             </div>

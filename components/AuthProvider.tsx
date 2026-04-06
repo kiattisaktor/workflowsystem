@@ -53,7 +53,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                             id: liffProfile.userId,
                             name: liffProfile.displayName,
                             nickName: liffProfile.displayName,
-                            role: "No Role"
+                            role: "No Role",
+                            isAdmin: false,
+                            canCreateTask: false,
                         });
                     }
                     setAuthMethod("LINE");
