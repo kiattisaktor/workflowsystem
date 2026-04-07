@@ -7,6 +7,8 @@ import TaskRow from "../components/TaskRow";
 import TaskDetailInline from "../components/TaskDetailInline";
 import ForwardTaskModal from "../components/ForwardTaskModal";
 import { Task, User, forwardTask, getTasks, getUsers } from "../lib/api";
+import { formatName } from "../lib/format";
+
 
 import { useAuth } from "../components/AuthProvider";
 import { registerUser } from "../lib/register";
@@ -140,17 +142,18 @@ export default function Home() {
     historyMap[k].sort((a, b) => a.order - b.order);
   });
 
-  // --- Calculate Notification Counts for Inspector ---
-  // A task is "waiting" for the user if the LATEST action's currentHolder matches them
+  // --- Calculate Notification Counts for All Users ---
   const allWaitingTasks = Object.values(historyMap).map(history => {
-    // History is sorted by order ASC, so the last one is the latest
-    return history[history.length - 1];
+    return history[history.length - 1]; // Latest row
   }).filter(latest => {
     if (latest.status === "ปิดงาน") return false;
     if (!latest.currentHolder || !user) return false;
-    // Match against formal Name or NickName
-    return latest.currentHolder === user.name ||
-      (user.nickName && latest.currentHolder === user.nickName);
+    
+    // Robust Matching: Compare NickName or Name (formatted)
+    const myName = (user.nickName || user.name).toLowerCase().trim();
+    const holderName = formatName(latest.currentHolder).toLowerCase().trim();
+
+    return holderName === myName;
   });
 
   const tabCounts: Record<string, number> = {
@@ -164,6 +167,7 @@ export default function Home() {
   workOptions.forEach(option => {
     workCounts[option] = currentTabWaiting.filter(t => t.work === option).length;
   });
+
 
 
   // Modal State
@@ -322,6 +326,8 @@ export default function Home() {
                 onForwardClick={handleForwardClick}
                 allUsers={allUsers}
                 isAdmin={!!user?.isAdmin}
+                currentUserName={user?.nickName || user?.name}
+                userRole={user?.role}
                 onRefresh={handleRefresh}
                 meetingId={meetingTasks[0]?.meeting_id}
               />

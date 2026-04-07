@@ -1,5 +1,5 @@
-import { Task, toggleSubjectDelete, reopenTask } from "../lib/api";
-import { formatName } from "../lib/format";
+import { Task, toggleSubjectDelete } from "../lib/api";
+import { formatName, formatDate } from "../lib/format";
 
 interface TaskRowProps {
     task: Task;
@@ -62,7 +62,7 @@ export default function TaskRow({ task, onClick, statusText, statusClass, isAdmi
                             <span className="text-sm sm:text-lg animate-pulse filter drop-shadow-sm leading-none" title="ด่วน">🔥</span>
                             {task.dueDate && (
                                 <span className="text-[9px] sm:text-[10px] text-red-500 font-bold bg-red-50 px-1 py-0.5 rounded mt-0.5 whitespace-nowrap scale-90 sm:scale-100 origin-center">
-                                    {task.dueDate}
+                                    {formatDate(task.dueDate)}
                                 </span>
                             )}
                         </div>

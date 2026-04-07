@@ -38,16 +38,6 @@ export default function TaskDetailInline({ currentTask, history, onForward, isAd
                                 <span className="font-bold">ECM: </span>
                                 {currentTask.ecm}
                             </p>
-                            {isAdmin && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setIsEditSubjectOpen(true); }}
-                                    className="text-amber-300 hover:text-amber-600 transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                </button>
-                            )}
                         </div>
                     )}
                     {currentTask.note && (
@@ -57,23 +47,13 @@ export default function TaskDetailInline({ currentTask, history, onForward, isAd
                                 <span className="font-bold">Note: </span>
                                 {currentTask.note}
                             </p>
-                            {!currentTask.ecm && isAdmin && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setIsEditSubjectOpen(true); }}
-                                    className="text-amber-300 hover:text-amber-600 transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>
             )}
 
-            {/* If NO ECM and NO NOTE, but is ADMIN, show an edit button anyway */}
-            {!currentTask.ecm && !currentTask.note && isAdmin && (
+            {/* Always show edit button for ADMIN above action buttons */}
+            {isAdmin && (
                 <div className="mb-4 flex justify-end px-2">
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsEditSubjectOpen(true); }}
@@ -151,7 +131,9 @@ export default function TaskDetailInline({ currentTask, history, onForward, isAd
                     ) : (
                         [...history].reverse().filter(h => h.status).map((item, index) => { // Reverse and Filter empty status
                             const isLastAction = index === 0;
-                            const canAddRemark = isLastAction && currentTask.status !== "ปิดงาน" && (isAdmin || (currentUserName && currentUserName === item.currentHolder));
+                            const holderNick = formatName(item.currentHolder || item.responsible).toLowerCase().trim();
+                            const myNick = (currentUserName || "").toLowerCase().trim();
+                            const canAddRemark = isLastAction && currentTask.status !== "ปิดงาน" && (isAdmin || (myNick && myNick === holderNick));
 
                             // Determine Action String
                             let actionText = "";

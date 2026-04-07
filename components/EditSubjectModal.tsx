@@ -122,76 +122,80 @@ export default function EditSubjectModal({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Subject */}
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">วาระ / เรื่อง <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                placeholder="เช่น 4.1 (ลับ) ..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* ECM */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">วาระ/เรื่อง</label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                  placeholder="เช่น 4.1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">ECM</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">ECM</label>
                 <input
                   type="text"
                   value={ecm}
                   onChange={(e) => setEcm(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                  placeholder="เลข ECM"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                  placeholder="เลข ECM (ถ้ามี)"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Responsible */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">ผู้รับผิดชอบ</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">ผู้รับผิดชอบ</label>
                 <select
                   value={responsible}
                   onChange={(e) => setResponsible(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                 >
-                  <option value="">-- เลือก --</option>
+                  <option value="">-- ยังไม่ระบุ --</option>
                   {ownerUsers.map(u => (
                     <option key={u.id} value={u.nickName || u.name}>{u.nickName || u.name}</option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">ถึงวันที่</label>
+            </div>
+
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:items-end">
+              {/* Due Date */}
+              <div className="w-full sm:w-auto max-w-[220px]">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">วันครบกำหนด</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                />
+              </div>
+              {/* Urgent */}
+              <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 h-[48px] w-full sm:w-auto">
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-[11px] sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                    type="checkbox"
+                    checked={urgent}
+                    onChange={(e) => setUrgent(e.target.checked)}
+                    className="sr-only peer"
                   />
-                </div>
-                <div className="flex items-center gap-3 pt-6">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={urgent}
-                      onChange={(e) => setUrgent(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 peer-checked:bg-red-500 rounded-full transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
-                  </label>
-                  <span className="text-xs font-bold text-slate-700">ด่วน</span>
-                </div>
+                  <div className="w-11 h-6 bg-slate-200 peer-checked:bg-red-500 rounded-full peer-focus:ring-2 peer-focus:ring-red-300 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+                <span className="text-sm font-bold text-slate-700">🔥 ด่วน</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">หมายเหตุ</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">หมายเหตุเพิ่มเติม</label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                rows={2}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
-                placeholder="หมายเหตุเพิ่มเติม..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+                placeholder="รายละเอียดเพิ่มเติม..."
               />
             </div>
 

@@ -540,6 +540,7 @@ export async function addRemarkToLastAction(
 // ========================
 export async function updateUser(uuid: string, updates: { 
   nick_name?: string; 
+  user_manager?: string;
   role?: string; 
   can_create_task?: boolean; 
   is_admin?: boolean;
@@ -679,6 +680,31 @@ export async function updateSubject(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    let oldResponsible = "";
+    let latestHistory: any = null;
+
+    // A. Pre-fetch data if responsible is changing to apply sync rules
+    if (updates.responsible) {
+      const { data: sub } = await supabase
+        .from("subjects")
+        .select("responsible")
+        .eq("id", subjectId)
+        .single();
+      oldResponsible = sub?.responsible || "";
+
+      const { data: hist } = await supabase
+        .from("task_routing")
+        .select("*")
+        .eq("subject_id", subjectId)
+        .order("order", { ascending: false })
+        .limit(1);
+      
+      if (hist && hist.length > 0) {
+        latestHistory = hist[0];
+      }
+    }
+
+    // B. Perform the update on the subjects table
     const { error } = await supabase
       .from('subjects')
       .update(updates)
@@ -686,15 +712,25 @@ export async function updateSubject(
 
     if (error) throw error;
 
-    // If responsible was updated, also update current_holder in task_routing (Order 0, No Status)
-    if (updates.responsible) {
+    // C. Sync current_holder based on user-defined rules
+    if (updates.responsible && updates.responsible !== oldResponsible) {
+      // 1. If only initial order (Order 0, Status '') exists (covered by rule 2)
+      // 2. If the LATEST holder is the old responsible, update them to the new one
+      if (latestHistory && latestHistory.current_holder === oldResponsible) {
+        await supabase
+          .from("task_routing")
+          .update({ current_holder: updates.responsible })
+          .eq("id", latestHistory.id);
+      }
+      
+      // Also always update Order 0 if it was held by the old responsible to keep root record clean
       await supabase
-        .from('task_routing')
+        .from("task_routing")
         .update({ current_holder: updates.responsible })
-        .eq('subject_id', subjectId)
-        .eq('order', 0)
-        .eq('status', '');
-      // NOTE: No LINE notification here as per latest requirement
+        .eq("subject_id", subjectId)
+        .eq("order", 0)
+        .eq("status", "")
+        .eq("current_holder", oldResponsible);
     }
 
     return { success: true };

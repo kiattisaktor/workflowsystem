@@ -62,6 +62,7 @@ export default function ManageUsersPage() {
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNickName, setEditNickName] = useState("");
+  const [editUserName, setEditUserName] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editCanCreate, setEditCanCreate] = useState(false);
   const [editIsAdmin, setEditIsAdmin] = useState(false);
@@ -131,6 +132,7 @@ export default function ManageUsersPage() {
   const startEdit = (u: AdminUser) => {
     setEditingId(u.uuid);
     setEditNickName(u.nickName);
+    setEditUserName(u.userManager);
     setEditRole(u.role);
     setEditCanCreate(u.canCreateTask);
     setEditIsAdmin(u.isAdmin);
@@ -145,6 +147,7 @@ export default function ManageUsersPage() {
     setSaving(uuid);
     const result = await updateUser(uuid, {
       nick_name: editNickName,
+      user_manager: editUserName,
       role: editRole,
       can_create_task: editCanCreate,
       is_admin: editIsAdmin,
@@ -256,6 +259,8 @@ export default function ManageUsersPage() {
                           editingId={editingId}
                           editNickName={editNickName}
                           setEditNickName={setEditNickName}
+                          editUserName={editUserName}
+                          setEditUserName={setEditUserName}
                           editSortOrder={editSortOrder}
                           setEditSortOrder={setEditSortOrder}
                           editRole={editRole}
@@ -305,10 +310,18 @@ export default function ManageUsersPage() {
 
                   {editingId === u.uuid ? (
                     <div className="space-y-2 mt-3">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Nickname</div>
                       <input
                         value={editNickName}
                         onChange={e => setEditNickName(e.target.value)}
                         placeholder="NickName"
+                        className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm"
+                      />
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Username (User Manager)</div>
+                      <input
+                        value={editUserName}
+                        onChange={e => setEditUserName(e.target.value)}
+                        placeholder="Username"
                         className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm"
                       />
                       <select
@@ -389,6 +402,8 @@ interface SortableUserRowProps {
   editingId: string | null;
   editNickName: string;
   setEditNickName: (val: string) => void;
+  editUserName: string;
+  setEditUserName: (val: string) => void;
   editSortOrder: number;
   setEditSortOrder: (val: number) => void;
   editRole: string;
@@ -410,6 +425,8 @@ function SortableUserRow({
   editingId,
   editNickName,
   setEditNickName,
+  editUserName,
+  setEditUserName,
   editSortOrder,
   setEditSortOrder,
   editRole,
@@ -461,8 +478,28 @@ function SortableUserRow({
           <div className="text-xs text-slate-400 truncate max-w-[150px]">LINE: {u.lineUserId.slice(0, 10)}...</div>
         )}
       </td>
-      <td className="px-4 py-3 text-slate-600">{u.nickName || "-"}</td>
-      <td className="px-4 py-3 text-slate-500">{u.userManager || "-"}</td>
+      <td className="px-4 py-3 text-slate-600">
+        {editingId === u.uuid ? (
+          <input
+            value={editNickName}
+            onChange={e => setEditNickName(e.target.value)}
+            className="w-full px-2 py-1 border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
+          />
+        ) : (
+          u.nickName || "-"
+        )}
+      </td>
+      <td className="px-4 py-3 text-slate-500">
+        {editingId === u.uuid ? (
+          <input
+            value={editUserName}
+            onChange={e => setEditUserName(e.target.value)}
+            className="w-full px-2 py-1 border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
+          />
+        ) : (
+          u.userManager || "-"
+        )}
+      </td>
       <td className="px-4 py-3">
         {editingId === u.uuid ? (
           <select

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { Task, User, toggleMeetingDelete } from "../lib/api";
-import { formatName } from "../lib/format";
+import { formatName, formatDate, formatDateFull } from "../lib/format";
 import TaskRow from "./TaskRow";
 import TaskDetailInline from "./TaskDetailInline";
 import ReportModal from "./ReportModal";
@@ -20,6 +20,8 @@ interface TaskGroupCardProps {
     isAdmin?: boolean;
     onRefresh?: () => void;
     meetingId?: string;
+    currentUserName?: string;
+    userRole?: string;
 }
 
 export default function TaskGroupCard({
@@ -34,6 +36,8 @@ export default function TaskGroupCard({
     isAdmin = false,
     onRefresh,
     meetingId,
+    currentUserName,
+    userRole,
 }: TaskGroupCardProps) {
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
@@ -50,14 +54,15 @@ export default function TaskGroupCard({
     const inspectors = allUsers.filter(u => u.role === "Inspector");
 
     const inspectorCounts = inspectors.map(inspector => {
+        const myName = (inspector.nickName || inspector.name).toLowerCase().trim();
         const refinedCount = tasks.filter(t => {
             if (t.status === "ปิดงาน") return false;
             if (!t.currentHolder) return false;
-            if (t.currentHolder === inspector.name) return true;
-            if (inspector.nickName && t.currentHolder === inspector.nickName) return true;
-            if (t.currentHolder.includes(inspector.name)) return true;
-            return false;
+            
+            const holderName = formatName(t.currentHolder).toLowerCase().trim();
+            return holderName === myName;
         }).length;
+
         return {
             nickName: inspector.nickName || inspector.name,
             count: refinedCount
@@ -68,37 +73,41 @@ export default function TaskGroupCard({
         .map(i => `${i.nickName} ${i.count}`)
         .join(", ");
 
-    // Excel Export Logic for Draft (พี่จา)
+    // Excel Export Logic for Draft (Multi-Inspector)
     const handleDirectExcelExport = () => {
         const titleRow = [[`สรุปการส่งงานร่างรายงาน: ${title}`], []]; // Title followed by empty row
 
-        const excelData = tasks.map((task, index) => {
+        // Identify all inspectors
+        const inspectors = allUsers.filter(u => u.role === "Inspector");
+
+        const excelData = tasks.map((task) => {
             const history = historyMap[`${task.sheet}|${task.work}|${task.meetingNo}|${task.subject}`] || [];
 
-            // Logic as specified by the user:
-            // status.includes("ส่งตรวจ")
-            // assigned_to.includes("จา")
-            // current_holder == responsible
-            const phiJaStep = [...history].reverse().find(h => {
-                const s = h.status || "";
-                const a = h.assignedTo || "";
-                return s.includes("ส่งตรวจ") && a.includes("จา") && h.currentHolder === h.responsible;
+            // Base fields
+            const rowData: Record<string, string> = {
+                "วาระ/เรื่อง": task.subject,
+                "คนรับผิดชอบ": formatName(task.responsible)
+            };
+
+            // Add date for each inspector
+            inspectors.forEach(inspector => {
+                const myName = (inspector.nickName || inspector.name).toLowerCase().trim();
+                
+                // Find the EARLIEST step where this task was sent to this inspector
+                const sentStep = history.find(h => {
+                    const status = h.status || "";
+                    const assignedTo = h.assignedTo || "";
+                    const holderName = formatName(assignedTo).toLowerCase().trim();
+                    
+                    // Logic: Sent for review to this inspector
+                    return status.includes("ส่งตรวจ") && holderName === myName;
+                });
+
+                const dateStr = sentStep && sentStep.timestamp ? formatDateFull(new Date(sentStep.timestamp).toISOString().split('T')[0]) : "";
+                rowData[`วันที่ส่งให้ ${inspector.nickName || inspector.name}`] = dateStr;
             });
 
-            let dateToJa = "";
-            if (phiJaStep && phiJaStep.timestamp) {
-                dateToJa = new Date(phiJaStep.timestamp).toLocaleDateString('th-TH', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-            }
-
-            return {
-                "วาระ/เรื่อง": task.subject,
-                "คนรับผิดชอบ": formatName(task.responsible),
-                "วันที่ส่งตรวจให้พี่จา": dateToJa || ""
-            };
+            return rowData;
         });
 
         // Create Worksheet starting with title
@@ -110,15 +119,18 @@ export default function TaskGroupCard({
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "DraftSummary");
 
-        // Set column widths (Shifted after removing Sequence column)
-        worksheet["!cols"] = [
+        // Set column widths dynamically
+        // Basic: Subject(50), Resp(20), plus 25 for each inspector
+        const colWidths = [
             { wch: 50 }, // วาระ/เรื่อง
             { wch: 20 }, // คนรับผิดชอบ
-            { wch: 25 }  // วันที่ส่งตรวจให้พี่จา
+            ...inspectors.map(() => ({ wch: 25 })) // One for each inspector
         ];
+        worksheet["!cols"] = colWidths;
 
         XLSX.writeFile(workbook, `สรุปส่งงานร่างรายงาน_${title.replace(/\//g, '-')}.xlsx`);
     };
+
 
     return (
         <>
@@ -277,6 +289,8 @@ export default function TaskGroupCard({
                                         history={history}
                                         onForward={onForwardClick}
                                         isAdmin={isAdmin}
+                                        userRole={userRole}
+                                        currentUserName={currentUserName}
                                         onRefresh={onRefresh}
                                     />
                                 )}
