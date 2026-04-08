@@ -203,7 +203,15 @@ export default function Home() {
       const { chainForwardTask } = await import("../lib/api");
       result = await chainForwardTask(selectedTask, remark, nextUserName, currentUserName);
     } else {
-      result = await forwardTask(selectedTask, remark, nextUserName, currentUserName, modalMode);
+      // Inspector Takeover Logic:
+      // If modalMode is RETURN but the person clicking is NOT the currentHolder,
+      // and they are an Inspector, we pass currentUserName as the overridingCurrentHolder.
+      let overridingCurrentHolder;
+      if (modalMode === "RETURN" && selectedTask.currentHolder !== currentUserName && user?.role === "Inspector") {
+        overridingCurrentHolder = currentUserName;
+      }
+
+      result = await forwardTask(selectedTask, remark, nextUserName, currentUserName, modalMode, false, overridingCurrentHolder);
     }
     
     setLoading(false);

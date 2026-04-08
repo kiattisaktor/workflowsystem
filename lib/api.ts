@@ -352,7 +352,8 @@ export async function forwardTask(
   nextUserName: string,
   currentUserName: string,
   actionType: "SUBMIT" | "RETURN" | "CLOSE",
-  suppressNotify?: boolean
+  suppressNotify?: boolean,
+  overridingCurrentHolder?: string
 ): Promise<{ success: boolean; newId?: string; error?: string }> {
 
   try {
@@ -368,14 +369,20 @@ export async function forwardTask(
     }
 
     // 2. Update the existing task routing
+    const updatePayload: any = {
+      status: oldRowStatus,
+      assigned_to: nextUser || '-',
+      remark: remark,
+      task_timestamp: new Date().toISOString(),
+    };
+
+    if (overridingCurrentHolder) {
+      updatePayload.current_holder = overridingCurrentHolder;
+    }
+
     const { error: updateError } = await supabase
       .from('task_routing')
-      .update({
-        status: oldRowStatus,
-        assigned_to: nextUser || '-',
-        remark: remark,
-        task_timestamp: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', task.id);
 
     if (updateError) {
