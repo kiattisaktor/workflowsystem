@@ -368,6 +368,22 @@ export async function forwardTask(
       nextUser = "";
     }
 
+    // 1.5 Concurrency Check: Ensure the task status is still empty
+    const { data: checkData, error: checkError } = await supabase
+      .from('task_routing')
+      .select('status')
+      .eq('id', task.id)
+      .single();
+
+    if (checkError) {
+      console.error('Error checking task status:', checkError);
+      return { success: false, error: "ไม่สามารถตรวจสอบสถานะงานได้ กรุณาลองใหม่อีกครั้ง" };
+    }
+
+    if (checkData && checkData.status !== '') {
+      return { success: false, error: "งานนี้มีการอัปเดตไปแล้วโดยบุคคลอื่น กรุณา Refresh หน้าจอเพื่อดูข้อมูลล่าสุด" };
+    }
+
     // 2. Update the existing task routing
     const updatePayload: any = {
       status: oldRowStatus,
