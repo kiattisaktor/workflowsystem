@@ -93,7 +93,9 @@ export async function getUsers(): Promise<User[]> {
 export async function getTasks(): Promise<Task[]> {
   const { data, error } = await supabase
     .from('tasks_view')
-    .select('*');
+    .select('*')
+    .order('order', { ascending: true })
+    .limit(10000);
 
   if (error) {
     console.error('Error fetching tasks:', error);
