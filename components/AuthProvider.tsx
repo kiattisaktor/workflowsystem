@@ -42,7 +42,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             if (isLiffLoggedIn && liffProfile) {
                 try {
                     // Clear any stale web session to ensure authMethod is always "LINE"
-                    localStorage.removeItem("web_user");
+                    //localStorage.removeItem("web_user");
 
                     const allUsers = await getUsers();
                     const match = allUsers.find((u) => u.id === liffProfile.userId);
